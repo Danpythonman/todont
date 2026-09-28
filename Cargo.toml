@@ -2,6 +2,14 @@
 name = "todont"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.88"
+description = "A todo list for the terminal (CLI + TUI) that syncs between devices through a self-hosted server and sends reminders to your phone via ntfy"
+license = "MIT"
+authors = ["Daniel Di Giovanni"]
+repository = "https://github.com/Danpythonman/todont"
+readme = "README.md"
+keywords = ["todo", "tui", "cli", "ntfy", "sync"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
@@ -20,3 +28,6 @@ toml = "1.1.6"
 [[bin]]
 name = "td"
 path = "src/main.rs"
+
+[profile.release]
+strip = true

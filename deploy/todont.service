@@ -1,5 +1,5 @@
 # Sync server + ntfy notifier. Install:
-#   sudo install -Dm755 target/release/td /usr/local/bin/td
+#   sudo install -Dm755 "$(command -v td)" /usr/local/bin/td
 #   sudo td init --server --config /etc/todont/config.toml
 #   sudo cp deploy/todont.service /etc/systemd/system/
 #   sudo systemctl enable --now todont

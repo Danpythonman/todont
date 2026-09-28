@@ -240,12 +240,19 @@ pub fn run(config: &Config) -> Result<(), ServerError> {
 }
 
 async fn shutdown_signal() {
-    use tokio::signal::unix::{SignalKind, signal};
-    let mut term = signal(SignalKind::terminate()).expect("SIGTERM handler");
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {}
-        _ = term.recv() => {}
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        // systemd stops services with SIGTERM.
+        let mut term =
+            signal(SignalKind::terminate()).expect("SIGTERM handler");
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = term.recv() => {}
+        }
     }
+    #[cfg(not(unix))]
+    let _ = tokio::signal::ctrl_c().await;
     eprintln!("shutting down");
 }
 

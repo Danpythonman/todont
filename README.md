@@ -64,11 +64,23 @@ With sync configured, each task has a status column:
 - `Enter` saves from any field. If something is wrong, the form stays open
   and jumps to the field at fault. `Esc` cancels.
 
-## Setup
+## Install
+
+You need Rust 1.88 or newer (install it from [rustup.rs](https://rustup.rs))
+and a C compiler, because SQLite is compiled in. Then:
 
 ```sh
-cargo build --release   # target/release/td
+cargo install todont                                          # from crates.io
+cargo install --git https://github.com/Danpythonman/todont    # latest main
 ```
+
+Either one installs the `td` binary into `~/.cargo/bin`. To build from a
+clone instead, run `cargo install --path .`.
+
+It's developed on Linux. It should work on macOS too, and Windows builds,
+but the systemd unit and `0600` config permissions are Unix-only.
+
+## Setup
 
 The local database lives at `~/.local/share/todont/todont.db` (override
 with `--db` or `$TODONT_DB`). With no config, `td` is a local-only todo list.
@@ -93,7 +105,7 @@ system-wide and install the unit, as described in the header of
 [`deploy/todont.service`](deploy/todont.service):
 
 ```sh
-sudo td init --server --config /etc/todont/config.toml
+sudo "$(command -v td)" init --server --config /etc/todont/config.toml
 ```
 
 That also moves the database default to `/var/lib/todont/`.
@@ -199,3 +211,7 @@ came due, the first message says "Overdue by …" instead of "Due now".
 
 `cargo test` covers core, due parsing, the TUI's update logic, notifier
 scheduling, and real HTTP sync between in-memory clients and a server.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

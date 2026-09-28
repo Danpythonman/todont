@@ -24,6 +24,7 @@ fn main() {
         token,
         yes,
         force,
+        ..
     }) = &args.cmd
     {
         let opts = init::Options {
@@ -48,8 +49,12 @@ fn main() {
     };
     if let Some(cli::Command::Service { action }) = &args.cmd {
         let result = match action {
-            cli::ServiceAction::Install => service::install(&config),
-            cli::ServiceAction::Uninstall => service::uninstall(),
+            cli::ServiceAction::Install { system } => {
+                service::install(&config, scope(*system))
+            }
+            cli::ServiceAction::Uninstall { system } => {
+                service::uninstall(scope(*system))
+            }
         };
         if let Err(e) = result {
             eprintln!("td service: {e}");
@@ -91,4 +96,12 @@ fn main() {
         Some(cmd) => cli::run(&cmd, &mut app, &config),
     };
     std::process::exit(code);
+}
+
+fn scope(system: bool) -> service::Scope {
+    if system {
+        service::Scope::System
+    } else {
+        service::Scope::User
+    }
 }

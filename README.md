@@ -18,7 +18,7 @@ Everything is one binary, `td`:
 | `td sync` | sync now |
 | `td init [--server]` | first-time setup (writes the config) |
 | `td serve` | run the sync server and notifier |
-| `td service install` / `uninstall` | run `td serve` as a systemd user service |
+| `td service install` / `uninstall` `[--system]` | run `td serve` as a systemd service |
 
 **Due dates** use your local time zone. These all work, and are
 case-insensitive:
@@ -120,15 +120,34 @@ systemctl --user status todont
 journalctl --user -u todont -f
 ```
 
-If you'd rather have a system-wide service under its own user, see
-[`deploy/todont.service`](deploy/todont.service). Its config lives in
-`/etc`:
+#### System-wide (e.g. a Raspberry Pi)
+
+On an always-on machine, you can run it as a system service instead.
+Install `td` as your normal user, then:
 
 ```sh
-sudo "$(command -v td)" init --server --config /etc/todont/config.toml
+sudo "$(command -v td)" init --server --system     # writes /etc/todont/config.toml
+sudo "$(command -v td)" service install --system   # installs and starts it
 ```
 
-That also moves the database default to `/var/lib/todont/`.
+This sets up:
+- **Binary:** `td` is copied to `/usr/local/bin/td`.
+- **Config:** it's read from `/etc/todont/config.toml`, which only root can
+  read. It's handed to the service at startup.
+- **Service account:** the service runs as a throwaway system user that can
+  only write `/var/lib/todont`, where the database lives.
+- **Start at boot:** it starts at boot, with no login needed.
+
+`sudo "$(command -v td)"` is needed because sudo doesn't search
+`~/.cargo/bin`.
+
+To check on it, use `systemctl status todont` and
+`journalctl -u todont -f`. `td service uninstall --system` removes the
+service but leaves the binary, config and data.
+
+On a Pi, `cargo install` builds from source. That can take a while, and it
+needs a C compiler (`sudo apt install build-essential`). On models with
+1 GB of RAM or less, add swap first.
 
 The server speaks plain HTTP and listens on `127.0.0.1:8787` by default.
 To reach it from other devices, put TLS in front:
@@ -177,11 +196,12 @@ cargo install todont
 systemctl --user restart todont   # on the server, if it runs as a service
 ```
 
-For the system-wide service instead, copy the binary over and restart:
+For the system-wide service, rerun the install. It copies the new binary
+into place and restarts the service:
 
 ```sh
-sudo install -Dm755 "$(command -v td)" /usr/local/bin/td
-sudo systemctl restart todont
+cargo install todont
+sudo "$(command -v td)" service install --system
 ```
 
 Restarting the server is safe. Devices that try to sync meanwhile keep

@@ -1,9 +1,11 @@
-# Sync server + ntfy notifier. Install:
+# Sync server + ntfy notifier, system-wide. `td service install --system`
+# writes this same unit for you (and copies td to /usr/local/bin); this copy
+# is for reference or manual setups:
 #   sudo install -Dm755 "$(command -v td)" /usr/local/bin/td
-#   sudo td init --server --config /etc/todont/config.toml
+#   sudo "$(command -v td)" init --server --system
 #   sudo cp deploy/todont.service /etc/systemd/system/
 #   sudo systemctl enable --now todont
-# The config's [server] db should be under /var/lib/todont/.
+# The config's [server] db must be under /var/lib/todont/.
 [Unit]
 Description=todont sync server and ntfy notifier
 After=network-online.target

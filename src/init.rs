@@ -660,6 +660,17 @@ pub fn run(opts: &Options, config_path: &Path, db_path: &Path) -> i32 {
     };
     match result {
         Ok(()) => 0,
+        Err(InitError::Io(e))
+            if e.kind() == io::ErrorKind::PermissionDenied =>
+        {
+            eprintln!(
+                "td init: can't write {}: {e}\n\
+                 For a system-wide config, run it as root:\n  \
+                 sudo \"$(command -v td)\" init --server --system",
+                config_path.display()
+            );
+            74 // EX_IOERR
+        }
         Err(e) => {
             eprintln!("td init: {e}");
             match e {

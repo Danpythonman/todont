@@ -119,15 +119,28 @@ pub enum Command {
         /// Replace an existing config without asking.
         #[arg(long)]
         force: bool,
+        /// With --server: write the system-wide /etc/todont/config.toml
+        /// (as root), for `td service install --system`.
+        #[arg(long, requires = "server")]
+        system: bool,
     },
 }
 
 #[derive(Subcommand, Debug)]
 pub enum ServiceAction {
     /// Install, enable and start the service (reinstalling updates it).
-    Install,
+    Install {
+        /// System-wide (as root): copy td to /usr/local/bin, use
+        /// /etc/todont/config.toml, start at boot. For always-on machines.
+        #[arg(long)]
+        system: bool,
+    },
     /// Stop, disable and remove the service.
-    Uninstall,
+    Uninstall {
+        /// Remove the system-wide service instead of your user one.
+        #[arg(long)]
+        system: bool,
+    },
 }
 
 impl Command {
@@ -149,8 +162,24 @@ impl Cli {
         self.db.clone().unwrap_or_else(App::default_path)
     }
 
+    /// `--config`, else /etc/todont/config.toml for `--system` commands,
+    /// else the user's config.
     pub fn config_path(&self) -> PathBuf {
-        self.config.clone().unwrap_or_else(Config::default_path)
+        if let Some(path) = &self.config {
+            return path.clone();
+        }
+        let system = match &self.cmd {
+            Some(Command::Init { system, .. }) => *system,
+            Some(Command::Service {
+                action: ServiceAction::Install { system },
+            }) => *system,
+            _ => false,
+        };
+        if system {
+            PathBuf::from(crate::service::SYSTEM_CONFIG)
+        } else {
+            Config::default_path()
+        }
     }
 }
 

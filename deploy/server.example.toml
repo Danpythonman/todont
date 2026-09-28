@@ -1,0 +1,14 @@
+# /etc/todont/config.toml on the home server.
+[server]
+listen = "0.0.0.0:8787"          # or 127.0.0.1 behind a reverse proxy
+db = "/var/lib/todont/server.db"
+token = "REPLACE: openssl rand -hex 32"
+timezone = "America/Toronto"     # times in notifications
+
+[ntfy]
+# On public ntfy.sh anyone who knows the topic can read it, so make it
+# unguessable: todont-$(openssl rand -hex 12)
+topic = "REPLACE"
+url = "https://ntfy.sh"
+lead_minutes = 0                 # remind this long before the due time
+nag_minutes = 120                # repeat for overdue tasks; 0 disables

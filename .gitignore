@@ -1,1 +1,5 @@
 /target
+
+# Local-only: reference example and editor settings.
+/extra/
+/.vscode/

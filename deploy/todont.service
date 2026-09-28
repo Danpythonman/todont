@@ -1,0 +1,25 @@
+# Sync server + ntfy notifier. Install:
+#   sudo install -Dm755 target/release/td /usr/local/bin/td
+#   sudo td init --server --config /etc/todont/config.toml
+#   sudo cp deploy/todont.service /etc/systemd/system/
+#   sudo systemctl enable --now todont
+# The config's [server] db should be under /var/lib/todont/.
+[Unit]
+Description=todont sync server and ntfy notifier
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/td serve --config ${CREDENTIALS_DIRECTORY}/config.toml
+# Lets the root-only config (it holds the token) be read by the dynamic user.
+LoadCredential=config.toml:/etc/todont/config.toml
+DynamicUser=yes
+StateDirectory=todont
+Restart=on-failure
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,4 @@
+# ~/.config/todont/config.toml on each device.
+[sync]
+server = "https://todo.your-tailnet.ts.net"
+token = "REPLACE: same token as the server"

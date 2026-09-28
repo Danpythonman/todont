@@ -3,3 +3,6 @@
 # Local-only: reference example and editor settings.
 /extra/
 /.vscode/
+
+# Secrets (crates.io token).
+.env

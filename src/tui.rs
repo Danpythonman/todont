@@ -122,6 +122,8 @@ struct State {
     syncing: bool,
     /// Which spinner frame to draw; advanced by the run loop.
     spinner: usize,
+    /// Already told the user the server runs a different version.
+    version_noted: bool,
     quit: bool,
 }
 
@@ -138,6 +140,7 @@ impl State {
             sync_on: false,
             syncing: false,
             spinner: 0,
+            version_noted: false,
             quit: false,
         }
     }
@@ -627,8 +630,14 @@ pub fn run(
 fn on_synced(state: &mut State, app: &App, result: Result<Stats, String>) {
     let now = Zoned::now().strftime("%H:%M").to_string();
     match result {
-        Ok(_) => {
+        Ok(stats) => {
             state.sync_label = format!("synced {now}");
+            if !state.version_noted
+                && let Some(note) = stats.version_note()
+            {
+                state.status = note;
+                state.version_noted = true;
+            }
             // Even with nothing pulled, pushed tasks are no longer dirty.
             refresh(state, app);
         }

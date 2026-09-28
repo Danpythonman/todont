@@ -646,10 +646,14 @@ pub fn run(opts: &Options, config_path: &Path, db_path: &Path) -> i32 {
             let mut app = App::open(db_path).map_err(|e| e.to_string())?;
             sync::sync(&mut app, cfg)
                 .map(|s| {
-                    format!(
+                    let msg = format!(
                         "synced ({} pushed, {} pulled)",
                         s.pushed, s.pulled
-                    )
+                    );
+                    match s.version_note() {
+                        Some(note) => format!("{msg}\n  note: {note}"),
+                        None => msg,
+                    }
                 })
                 .map_err(|e| e.to_string())
         })

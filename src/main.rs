@@ -9,6 +9,7 @@ mod init;
 mod notify;
 mod proto;
 mod server;
+mod service;
 mod sync;
 mod tui;
 
@@ -45,6 +46,17 @@ fn main() {
             std::process::exit(78); // EX_CONFIG
         }
     };
+    if let Some(cli::Command::Service { action }) = &args.cmd {
+        let result = match action {
+            cli::ServiceAction::Install => service::install(&config),
+            cli::ServiceAction::Uninstall => service::uninstall(),
+        };
+        if let Err(e) = result {
+            eprintln!("td service: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if let Some(cli::Command::Serve) = args.cmd {
         if let Err(e) = server::run(&config) {
             eprintln!("td serve: {e}");

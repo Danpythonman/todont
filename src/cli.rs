@@ -97,6 +97,11 @@ pub enum Command {
     Sync,
     /// Run the sync server and ntfy notifier (see [server] in the config).
     Serve,
+    /// Run `td serve` in the background as a systemd user service (Linux).
+    Service {
+        #[command(subcommand)]
+        action: ServiceAction,
+    },
     /// First-time setup: write config.toml for this device or the server.
     Init {
         /// Set up the sync server and ntfy notifier instead of a client.
@@ -117,6 +122,14 @@ pub enum Command {
     },
 }
 
+#[derive(Subcommand, Debug)]
+pub enum ServiceAction {
+    /// Install, enable and start the service (reinstalling updates it).
+    Install,
+    /// Stop, disable and remove the service.
+    Uninstall,
+}
+
 impl Command {
     /// Whether the command changes tasks, and so should be synced.
     fn mutates(&self) -> bool {
@@ -125,6 +138,7 @@ impl Command {
             Command::List { .. }
                 | Command::Sync
                 | Command::Serve
+                | Command::Service { .. }
                 | Command::Init { .. }
         )
     }
@@ -242,7 +256,10 @@ fn dispatch(cmd: &Command, app: &mut App) -> Result<(), CoreError> {
             }
         }
 
-        Command::Sync | Command::Serve | Command::Init { .. } => {
+        Command::Sync
+        | Command::Serve
+        | Command::Service { .. }
+        | Command::Init { .. } => {
             unreachable!("handled by caller")
         }
     }
@@ -260,6 +277,9 @@ fn run_sync(app: &mut App, config: &Config) -> i32 {
     match sync::sync(app, cfg) {
         Ok(s) => {
             println!("synced: {} pushed, {} pulled", s.pushed, s.pulled);
+            if let Some(note) = s.version_note() {
+                eprintln!("td: note: {note}");
+            }
             0
         }
         Err(e) => {

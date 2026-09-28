@@ -6,16 +6,16 @@ use std::sync::{Arc, Mutex};
 use axum::{
     Json, Router,
     extract::{Request, State},
-    http::{StatusCode, header},
+    http::{HeaderValue, StatusCode, header},
     middleware::{self, Next},
-    response::Response,
+    response::{IntoResponse, Response},
     routing::{get, post},
 };
 use rusqlite::{Connection, params};
 
 use crate::config::Config;
 use crate::notify;
-use crate::proto::{Change, SyncRequest, SyncResponse};
+use crate::proto::{self, Change, SyncRequest, SyncResponse};
 
 const MIGRATIONS: &[&str] = &[
     include_str!("sql/server/schema.sql"),
@@ -136,9 +136,20 @@ impl Shared {
 pub fn router(state: Arc<Shared>) -> Router {
     Router::new()
         .route("/sync", post(sync))
+        // Layers run outermost-last: authenticate, then check versions.
+        .route_layer(middleware::from_fn(versions))
         .route_layer(middleware::from_fn_with_state(state.clone(), auth))
         // Unauthenticated, for uptime checks.
         .route("/health", get(|| async { "ok" }))
+        .with_state(state)
+}
+
+/// The router as todont 0.1.0 had it: no version checks or headers.
+#[cfg(test)]
+pub fn router_like_0_1_0(state: Arc<Shared>) -> Router {
+    Router::new()
+        .route("/sync", post(sync))
+        .route_layer(middleware::from_fn_with_state(state.clone(), auth))
         .with_state(state)
 }
 
@@ -158,6 +169,49 @@ async fn auth(
         }
         _ => Err(StatusCode::UNAUTHORIZED),
     }
+}
+
+/// Refuses clients speaking a different sync protocol, before they can
+/// change anything, and labels every reply with this server's versions.
+async fn versions(req: Request, next: Next) -> Response {
+    // Owned copies, read up front: a borrow of `req` can't be held across
+    // the await (the body isn't Sync, so the future wouldn't be Send).
+    let (theirs, their_version) = {
+        let header = |name| {
+            req.headers()
+                .get(name)
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_owned)
+        };
+        let protocol = header(proto::PROTOCOL_HEADER);
+        (
+            proto::parse_protocol(protocol.as_deref()),
+            header(proto::VERSION_HEADER),
+        )
+    };
+    let mut resp = if theirs == proto::PROTOCOL {
+        next.run(req).await
+    } else {
+        let version = their_version.unwrap_or_else(|| "0.1.0".into());
+        eprintln!(
+            "sync: refused todont {version} (sync protocol {theirs}); \
+             this server is {} (protocol {})",
+            proto::VERSION,
+            proto::PROTOCOL
+        );
+        let body = proto::Incompatible {
+            server_version: proto::VERSION.into(),
+            server_protocol: proto::PROTOCOL,
+        };
+        (StatusCode::UPGRADE_REQUIRED, Json(body)).into_response()
+    };
+    let headers = resp.headers_mut();
+    headers.insert(proto::PROTOCOL_HEADER, HeaderValue::from(proto::PROTOCOL));
+    headers.insert(
+        proto::VERSION_HEADER,
+        HeaderValue::from_static(proto::VERSION),
+    );
+    resp
 }
 
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {

@@ -18,6 +18,7 @@ Everything is one binary, `td`:
 | `td sync` | sync now |
 | `td init [--server]` | first-time setup (writes the config) |
 | `td serve` | run the sync server and notifier |
+| `td service install` / `uninstall` | run `td serve` as a systemd user service |
 
 **Due dates** use your local time zone. These all work, and are
 case-insensitive:
@@ -100,9 +101,28 @@ accept it, or pass `--yes` to accept them all. It:
 - offers to send a test notification;
 - prints the exact command to run on your other devices.
 
-Then run `td serve`. To run it as a service instead, write the config
-system-wide and install the unit, as described in the header of
-[`deploy/todont.service`](deploy/todont.service):
+Then start the server. You can run `td serve` in a terminal to try it
+out. To keep it running in the background, install it as a systemd user
+service (Linux):
+
+```sh
+td service install      # writes ~/.config/systemd/user/todont.service
+loginctl enable-linger  # optional: keep it running after logout, start at boot
+```
+
+The service runs as you, with your normal config, and restarts if it
+crashes. It uses whichever `td` you ran the command with, so run it from a
+`cargo install`ed `td`, not a build directory. Reinstalling updates the
+unit, and `td service uninstall` removes it. To watch it:
+
+```sh
+systemctl --user status todont
+journalctl --user -u todont -f
+```
+
+If you'd rather have a system-wide service under its own user, see
+[`deploy/todont.service`](deploy/todont.service). Its config lives in
+`/etc`:
 
 ```sh
 sudo "$(command -v td)" init --server --config /etc/todont/config.toml
@@ -146,6 +166,39 @@ Install the ntfy app (F-Droid or Play Store) and subscribe to your topic on
 `ntfy.sh`. Reminders arrive at high priority; repeat nags arrive at default
 priority. On public ntfy.sh the topic name is the only secret, so keep it
 long and random.
+
+## Updating
+
+Install the new version the same way you installed it, on the server and
+on each device:
+
+```sh
+cargo install todont
+systemctl --user restart todont   # on the server, if it runs as a service
+```
+
+For the system-wide service instead, copy the binary over and restart:
+
+```sh
+sudo install -Dm755 "$(command -v td)" /usr/local/bin/td
+sudo systemctl restart todont
+```
+
+Restarting the server is safe. Devices that try to sync meanwhile keep
+their changes and send them next time. Any database changes a new version
+needs are applied automatically.
+
+**Version checks.** Every sync carries both sides' todont version and sync
+protocol number:
+- The protocol only changes when a release can't sync with older ones.
+  When they differ, the server refuses before changing anything, and `td`
+  says which side to update, e.g. `the server runs todont 0.3.0 (sync
+  protocol 2) but this td is 0.2.0 (protocol 1); update this device: cargo
+  install todont`.
+- If versions differ but can still sync, `td sync`, `td init` and the TUI
+  mention it.
+
+Update the server first, then your devices. Don't downgrade.
 
 ## How sync works
 
@@ -206,6 +259,8 @@ came due, the first message says "Overdue by …" instead of "Due now".
 | `src/proto.rs` | `/sync` wire format |
 | `src/sync.rs` | sync client |
 | `src/server.rs`, `src/sql/server/` | sync server |
+| `src/service.rs` | `td service`: systemd user unit |
+| `src/init.rs` | `td init`: first-run config |
 | `src/notify.rs` | ntfy notifier |
 | `src/config.rs` | `config.toml` |
 

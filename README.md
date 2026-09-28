@@ -78,8 +78,9 @@ cargo install --git https://github.com/Danpythonman/todont    # latest main
 Either one installs the `td` binary into `~/.cargo/bin`. To build from a
 clone instead, run `cargo install --path .`.
 
-It's developed on Linux. It should work on macOS too, and Windows builds,
-but the systemd unit and `0600` config permissions are Unix-only.
+It's developed on Linux (including Raspberry Pi) and should work on macOS.
+Windows should build but is untested; `td service` and the `0600` config
+permissions are Linux/Unix-only.
 
 ## Setup
 
@@ -149,14 +150,20 @@ On a Pi, `cargo install` builds from source. That can take a while, and it
 needs a C compiler (`sudo apt install build-essential`). On models with
 1 GB of RAM or less, add swap first.
 
-The server speaks plain HTTP and listens on `127.0.0.1:8787` by default.
-To reach it from other devices, put TLS in front:
-- **Tailscale:** `tailscale serve --bg 8787` gives you
+#### Reaching it from other devices
+
+The server speaks plain HTTP and listens on `127.0.0.1:8787` by default,
+so at first only the machine itself can reach it. Pick one:
+- **Tailscale (recommended):** `tailscale serve --bg 8787` gives you
   `https://<host>.<tailnet>.ts.net`, reachable only by your own devices.
 - **Reverse proxy:** e.g. Caddy's `todo.example.com { reverse_proxy
-  127.0.0.1:8787 }`.
+  127.0.0.1:8787 }`, for HTTPS on your own domain.
+- **Home network only:** set `listen = "0.0.0.0:8787"` (or answer that in
+  `td init --server`) and use `http://<host>:8787`. Traffic isn't
+  encrypted, so only do this on a network you trust.
 
-`GET /health` returns `ok` without auth, for uptime checks.
+Restart the server after changing `listen`. `GET /health` returns `ok`
+without auth, for uptime checks.
 
 ### Each device
 
@@ -176,8 +183,8 @@ Each `init` only rewrites its own sections of the config:
 Everything else in the file, comments included, is left alone, so one
 machine can be both server and client in either order. Rerunning `init`
 offers the current values (token, ntfy topic, …) as defaults. It only
-replaces a section after asking, or with `--force`. There are also hand-written
-examples in [`deploy/`](deploy/).
+replaces a section after asking, or with `--force`. There are also
+hand-written examples in [`deploy/`](deploy/).
 
 ### Phone
 
@@ -279,13 +286,21 @@ came due, the first message says "Overdue by …" instead of "Due now".
 | `src/proto.rs` | `/sync` wire format |
 | `src/sync.rs` | sync client |
 | `src/server.rs`, `src/sql/server/` | sync server |
-| `src/service.rs` | `td service`: systemd user unit |
+| `src/service.rs` | `td service`: systemd user and system units |
 | `src/init.rs` | `td init`: first-run config |
 | `src/notify.rs` | ntfy notifier |
 | `src/config.rs` | `config.toml` |
 
-`cargo test` covers core, due parsing, the TUI's update logic, notifier
-scheduling, and real HTTP sync between in-memory clients and a server.
+`cargo test` covers:
+- core and due-date parsing;
+- the TUI's update logic and rendering;
+- notifier scheduling;
+- `init`'s config merging;
+- service unit generation;
+- real HTTP sync between in-memory clients and a server, including version
+  mismatches and 0.1.0 peers.
+
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
 
 ## License
 
